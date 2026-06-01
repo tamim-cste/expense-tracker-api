@@ -1,0 +1,20 @@
+# Compiled binary
+expense-tracker-api
+*.exe
+*.out
+
+# CSV data files
+data/users.csv
+data/expenses.csv
+
+# Beego generated
+/swagger/*.go
+*.pid
+
+# Go test cache
+*.test
+*.prof
+
+# IDE
+.vscode/
+.idea/
