@@ -1,0 +1,300 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Expense Tracker API",
+    "description": "A RESTful API for tracking personal expenses. After login, pass the returned user_id in the X-User-ID header for all expense endpoints.",
+    "version": "1.0.0",
+    "contact": { "email": "support@expense-tracker.local" },
+    "license": { "name": "MIT" }
+  },
+  "basePath": "/api/v1",
+  "schemes": ["http"],
+  "consumes": ["application/json"],
+  "produces": ["application/json"],
+  "securityDefinitions": {
+    "UserID": {
+      "type": "apiKey",
+      "in": "header",
+      "name": "X-User-ID",
+      "description": "User ID returned from the login endpoint"
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Server health check",
+        "description": "Returns a simple status message confirming the server is running",
+        "operationId": "HealthCheck",
+        "responses": {
+          "200": { "description": "Server is running", "schema": { "$ref": "#/definitions/SuccessResponse" } }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Register a new user",
+        "description": "Creates a new user account. Email must be unique.",
+        "operationId": "Register",
+        "parameters": [
+          {
+            "in": "body", "name": "body", "required": true,
+            "schema": { "$ref": "#/definitions/RegisterInput" }
+          }
+        ],
+        "responses": {
+          "201": { "description": "User registered successfully", "schema": { "$ref": "#/definitions/SuccessResponse" } },
+          "400": { "description": "Validation error", "schema": { "$ref": "#/definitions/ErrorResponse" } },
+          "409": { "description": "Email already exists", "schema": { "$ref": "#/definitions/ErrorResponse" } }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Log in",
+        "description": "Authenticates the user. Use the returned user_id as X-User-ID header in subsequent requests.",
+        "operationId": "Login",
+        "parameters": [
+          {
+            "in": "body", "name": "body", "required": true,
+            "schema": { "$ref": "#/definitions/LoginInput" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Login successful", "schema": { "$ref": "#/definitions/LoginResponse" } },
+          "400": { "description": "Missing fields", "schema": { "$ref": "#/definitions/ErrorResponse" } },
+          "401": { "description": "Invalid credentials", "schema": { "$ref": "#/definitions/ErrorResponse" } }
+        }
+      }
+    },
+    "/expenses": {
+      "post": {
+        "tags": ["Expenses"],
+        "summary": "Create an expense",
+        "security": [{ "UserID": [] }],
+        "operationId": "CreateExpense",
+        "parameters": [
+          { "in": "header", "name": "X-User-ID", "type": "integer", "required": true, "description": "Authenticated user ID" },
+          { "in": "body", "name": "body", "required": true, "schema": { "$ref": "#/definitions/ExpenseInput" } }
+        ],
+        "responses": {
+          "201": { "description": "Expense created successfully", "schema": { "$ref": "#/definitions/ExpenseResponse" } },
+          "400": { "description": "Validation error", "schema": { "$ref": "#/definitions/ErrorResponse" } },
+          "401": { "description": "Unauthorized", "schema": { "$ref": "#/definitions/ErrorResponse" } }
+        }
+      },
+      "get": {
+        "tags": ["Expenses"],
+        "summary": "List expenses",
+        "description": "Returns paginated expenses with optional filters and sorting",
+        "security": [{ "UserID": [] }],
+        "operationId": "ListExpenses",
+        "parameters": [
+          { "in": "header", "name": "X-User-ID", "type": "integer", "required": true },
+          { "in": "query", "name": "category", "type": "string", "description": "Filter by category" },
+          { "in": "query", "name": "date_from", "type": "string", "description": "Start date YYYY-MM-DD" },
+          { "in": "query", "name": "date_to", "type": "string", "description": "End date YYYY-MM-DD" },
+          { "in": "query", "name": "sort_by", "type": "string", "description": "amount or expense_date" },
+          { "in": "query", "name": "sort_order", "type": "string", "description": "asc or desc (default: desc)" },
+          { "in": "query", "name": "limit", "type": "integer", "description": "Items per page (default: 10)" },
+          { "in": "query", "name": "page", "type": "integer", "description": "Page number (default: 1)" }
+        ],
+        "responses": {
+          "200": { "description": "Expenses retrieved", "schema": { "$ref": "#/definitions/ExpenseListResponse" } },
+          "401": { "description": "Unauthorized", "schema": { "$ref": "#/definitions/ErrorResponse" } }
+        }
+      }
+    },
+    "/expenses/summary": {
+      "get": {
+        "tags": ["Expenses"],
+        "summary": "Get spending summary",
+        "description": "Returns total spending and per-category breakdown for a date range",
+        "security": [{ "UserID": [] }],
+        "operationId": "ExpenseSummary",
+        "parameters": [
+          { "in": "header", "name": "X-User-ID", "type": "integer", "required": true },
+          { "in": "query", "name": "date_from", "type": "string", "required": true, "description": "Start date YYYY-MM-DD" },
+          { "in": "query", "name": "date_to", "type": "string", "required": true, "description": "End date YYYY-MM-DD" }
+        ],
+        "responses": {
+          "200": { "description": "Summary generated", "schema": { "$ref": "#/definitions/SummaryResponse" } },
+          "400": { "description": "Missing date params", "schema": { "$ref": "#/definitions/ErrorResponse" } },
+          "401": { "description": "Unauthorized", "schema": { "$ref": "#/definitions/ErrorResponse" } }
+        }
+      }
+    },
+    "/expenses/{id}": {
+      "get": {
+        "tags": ["Expenses"],
+        "summary": "Get a single expense",
+        "security": [{ "UserID": [] }],
+        "operationId": "GetExpense",
+        "parameters": [
+          { "in": "header", "name": "X-User-ID", "type": "integer", "required": true },
+          { "in": "path", "name": "id", "type": "integer", "required": true, "description": "Expense ID" }
+        ],
+        "responses": {
+          "200": { "description": "Expense retrieved", "schema": { "$ref": "#/definitions/ExpenseResponse" } },
+          "401": { "description": "Unauthorized", "schema": { "$ref": "#/definitions/ErrorResponse" } },
+          "404": { "description": "Expense not found", "schema": { "$ref": "#/definitions/ErrorResponse" } }
+        }
+      },
+      "put": {
+        "tags": ["Expenses"],
+        "summary": "Update an expense",
+        "security": [{ "UserID": [] }],
+        "operationId": "UpdateExpense",
+        "parameters": [
+          { "in": "header", "name": "X-User-ID", "type": "integer", "required": true },
+          { "in": "path", "name": "id", "type": "integer", "required": true },
+          { "in": "body", "name": "body", "required": true, "schema": { "$ref": "#/definitions/ExpenseInput" } }
+        ],
+        "responses": {
+          "200": { "description": "Expense updated successfully", "schema": { "$ref": "#/definitions/ExpenseResponse" } },
+          "400": { "description": "Validation error", "schema": { "$ref": "#/definitions/ErrorResponse" } },
+          "401": { "description": "Unauthorized", "schema": { "$ref": "#/definitions/ErrorResponse" } },
+          "404": { "description": "Expense not found", "schema": { "$ref": "#/definitions/ErrorResponse" } }
+        }
+      },
+      "delete": {
+        "tags": ["Expenses"],
+        "summary": "Delete an expense",
+        "security": [{ "UserID": [] }],
+        "operationId": "DeleteExpense",
+        "parameters": [
+          { "in": "header", "name": "X-User-ID", "type": "integer", "required": true },
+          { "in": "path", "name": "id", "type": "integer", "required": true }
+        ],
+        "responses": {
+          "200": { "description": "Expense deleted successfully", "schema": { "$ref": "#/definitions/SuccessResponse" } },
+          "401": { "description": "Unauthorized", "schema": { "$ref": "#/definitions/ErrorResponse" } },
+          "404": { "description": "Expense not found", "schema": { "$ref": "#/definitions/ErrorResponse" } }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "RegisterInput": {
+      "type": "object", "required": ["name", "email", "password"],
+      "properties": {
+        "name":     { "type": "string", "example": "John Doe" },
+        "email":    { "type": "string", "example": "john@example.com" },
+        "password": { "type": "string", "minLength": 6, "example": "secret123" }
+      }
+    },
+    "LoginInput": {
+      "type": "object", "required": ["email", "password"],
+      "properties": {
+        "email":    { "type": "string", "example": "john@example.com" },
+        "password": { "type": "string", "example": "secret123" }
+      }
+    },
+    "ExpenseInput": {
+      "type": "object", "required": ["title", "amount", "category", "expense_date"],
+      "properties": {
+        "title":        { "type": "string", "example": "Lunch" },
+        "amount":       { "type": "number", "example": 350.50 },
+        "category":     { "type": "string", "example": "Food", "enum": ["Food","Transport","Housing","Entertainment","Shopping","Healthcare","Education","Utilities","Other"] },
+        "note":         { "type": "string", "example": "Team lunch" },
+        "expense_date": { "type": "string", "example": "2025-06-01" }
+      }
+    },
+    "Expense": {
+      "type": "object",
+      "properties": {
+        "id":           { "type": "integer" },
+        "user_id":      { "type": "integer" },
+        "title":        { "type": "string" },
+        "amount":       { "type": "number" },
+        "category":     { "type": "string" },
+        "note":         { "type": "string" },
+        "expense_date": { "type": "string" },
+        "created_at":   { "type": "string" }
+      }
+    },
+    "SuccessResponse": {
+      "type": "object",
+      "properties": {
+        "success": { "type": "boolean", "example": true },
+        "message": { "type": "string" }
+      }
+    },
+    "ErrorResponse": {
+      "type": "object",
+      "properties": {
+        "success": { "type": "boolean", "example": false },
+        "message": { "type": "string" }
+      }
+    },
+    "LoginResponse": {
+      "type": "object",
+      "properties": {
+        "success": { "type": "boolean" },
+        "message": { "type": "string" },
+        "data": {
+          "type": "object",
+          "properties": {
+            "user_id": { "type": "integer" },
+            "name":    { "type": "string" },
+            "email":   { "type": "string" }
+          }
+        }
+      }
+    },
+    "ExpenseResponse": {
+      "type": "object",
+      "properties": {
+        "success": { "type": "boolean" },
+        "message": { "type": "string" },
+        "data":    { "$ref": "#/definitions/Expense" }
+      }
+    },
+    "ExpenseListResponse": {
+      "type": "object",
+      "properties": {
+        "success": { "type": "boolean" },
+        "message": { "type": "string" },
+        "data": {
+          "type": "object",
+          "properties": {
+            "expenses":    { "type": "array", "items": { "$ref": "#/definitions/Expense" } },
+            "total":       { "type": "integer" },
+            "page":        { "type": "integer" },
+            "limit":       { "type": "integer" },
+            "total_pages": { "type": "integer" }
+          }
+        }
+      }
+    },
+    "SummaryResponse": {
+      "type": "object",
+      "properties": {
+        "success": { "type": "boolean" },
+        "message": { "type": "string" },
+        "data": {
+          "type": "object",
+          "properties": {
+            "date_from":     { "type": "string" },
+            "date_to":       { "type": "string" },
+            "total_amount":  { "type": "number" },
+            "total_count":   { "type": "integer" },
+            "by_category": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "category": { "type": "string" },
+                  "total":    { "type": "number" },
+                  "count":    { "type": "integer" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
