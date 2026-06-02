@@ -25,6 +25,7 @@ go mod download
 3. Run this command in the terminal
 ```bash
 cp conf/app.conf.sample conf/app.conf
+```
 
 4. Run the server:
 
