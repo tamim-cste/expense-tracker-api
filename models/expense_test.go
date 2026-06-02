@@ -1,4 +1,4 @@
-package tests
+package models_test
 
 import (
 	"testing"
@@ -124,7 +124,7 @@ func TestIsValidCategory(t *testing.T) {
 		{"Education", true},
 		{"Utilities", true},
 		{"Other", true},
-		{"food", false},      // case sensitive
+		{"food", false}, // case sensitive
 		{"FOOD", false},
 		{"Invalid", false},
 		{"", false},

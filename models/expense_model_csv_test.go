@@ -1,4 +1,4 @@
-package tests
+package models_test
 
 import (
 	"os"
@@ -137,10 +137,10 @@ func TestGetExpenseByID(t *testing.T) {
 // TestCreateExpense tests appending a new expense to the CSV.
 func TestCreateExpense(t *testing.T) {
 	tests := []struct {
-		name       string
-		seedData   string
-		input      models.Expense
-		wantID     int
+		name     string
+		seedData string
+		input    models.Expense
+		wantID   int
 	}{
 		{
 			name:   "create first expense gets id 1",
@@ -186,11 +186,11 @@ func TestCreateExpense(t *testing.T) {
 // TestUpdateExpense tests updating an existing expense.
 func TestUpdateExpense(t *testing.T) {
 	tests := []struct {
-		name        string
-		seedData    string
-		update      models.Expense
-		wantErr     bool
-		wantTitle   string
+		name      string
+		seedData  string
+		update    models.Expense
+		wantErr   bool
+		wantTitle string
 	}{
 		{
 			name:      "successful update",
@@ -308,14 +308,14 @@ func TestDeleteExpense(t *testing.T) {
 // TestBuildSummary tests the spending summary aggregation.
 func TestBuildSummary(t *testing.T) {
 	tests := []struct {
-		name            string
-		seedData        string
-		userID          int
-		dateFrom        string
-		dateTo          string
-		wantTotal       float64
-		wantCount       int
-		wantCategories  int
+		name           string
+		seedData       string
+		userID         int
+		dateFrom       string
+		dateTo         string
+		wantTotal      float64
+		wantCount      int
+		wantCategories int
 	}{
 		{
 			name:           "summary with multiple categories",

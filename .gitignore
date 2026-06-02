@@ -8,7 +8,7 @@ data/users.csv
 data/expenses.csv
 
 # Beego generated
-/swagger/*.go
+#/swagger/*.go
 *.pid
 
 # Go test cache

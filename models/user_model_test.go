@@ -1,4 +1,4 @@
-package tests
+package models_test
 
 import (
 	"os"
@@ -248,17 +248,17 @@ func TestCreateUser(t *testing.T) {
 		wantErrNil bool
 	}{
 		{
-			name:     "create first user",
-			seedData: "",
-			input:    models.User{Name: "Alice", Email: "alice@example.com", Password: "pass123"},
-			wantID:   1,
+			name:       "create first user",
+			seedData:   "",
+			input:      models.User{Name: "Alice", Email: "alice@example.com", Password: "pass123"},
+			wantID:     1,
 			wantErrNil: true,
 		},
 		{
-			name:     "create second user gets id 2",
-			seedData: "1,Bob,bob@example.com,pass,2025-01-01T00:00:00Z\n",
-			input:    models.User{Name: "Alice", Email: "alice@example.com", Password: "pass123"},
-			wantID:   2,
+			name:       "create second user gets id 2",
+			seedData:   "1,Bob,bob@example.com,pass,2025-01-01T00:00:00Z\n",
+			input:      models.User{Name: "Alice", Email: "alice@example.com", Password: "pass123"},
+			wantID:     2,
 			wantErrNil: true,
 		},
 	}

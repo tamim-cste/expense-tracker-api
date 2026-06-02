@@ -24,14 +24,16 @@ type User struct {
 // overrideUsersCSVPath allows tests to redirect CSV reads/writes to a temp file.
 var overrideUsersCSVPath string
 
-// SetUsersCSVPath overrides the CSV path used by all user model functions.
-// Pass an empty string to reset to the config default. Used only in tests.
+/* SetUsersCSVPath overrides the CSV path used by all user model functions.
+ Pass an empty string to reset to the config default. Used only in tests. */
+
 func SetUsersCSVPath(path string) {
 	overrideUsersCSVPath = path
 }
 
-// getUsersCSVPath returns the active CSV file path for users.
-// If SetUsersCSVPath has been called (e.g. in tests), that path takes priority.
+/* getUsersCSVPath returns the active CSV file path for users.
+ If SetUsersCSVPath has been called (e.g. in tests), that path takes priority. */
+ 
 func getUsersCSVPath() string {
 	if overrideUsersCSVPath != "" {
 		return overrideUsersCSVPath
