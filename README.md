@@ -22,7 +22,11 @@ It is designed as an API-only backend with no frontend.
 go mod download
 ```
 
-3. Run the server:
+3. Run this command in the terminal
+```bash
+cp conf/app.conf.sample conf/app.conf
+
+4. Run the server:
 
 ```bash
 bee run
