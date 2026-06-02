@@ -2,6 +2,7 @@ package models
 
 import (
 	"encoding/csv"
+	"path/filepath"
 	"errors"
 	"os"
 	"strconv"
@@ -11,7 +12,7 @@ import (
 	"github.com/beego/beego/v2/server/web"
 )
 
-// User field represents a registered user in the system.
+// User represents a registered user in the system.
 type User struct {
 	ID        int    `json:"id"`
 	Name      string `json:"name"`
@@ -20,8 +21,21 @@ type User struct {
 	CreatedAt string `json:"created_at"`
 }
 
-// This method returns the configured CSV file path for users.
+// overrideUsersCSVPath allows tests to redirect CSV reads/writes to a temp file.
+var overrideUsersCSVPath string
+
+// SetUsersCSVPath overrides the CSV path used by all user model functions.
+// Pass an empty string to reset to the config default. Used only in tests.
+func SetUsersCSVPath(path string) {
+	overrideUsersCSVPath = path
+}
+
+// getUsersCSVPath returns the active CSV file path for users.
+// If SetUsersCSVPath has been called (e.g. in tests), that path takes priority.
 func getUsersCSVPath() string {
+	if overrideUsersCSVPath != "" {
+		return overrideUsersCSVPath
+	}
 	path, _ := web.AppConfig.String("users_csv_path")
 	if path == "" {
 		path = "data/users.csv"
@@ -29,10 +43,10 @@ func getUsersCSVPath() string {
 	return path
 }
 
-// This method creates the CSV file with headers if it doesn't exist.
+// ensureUsersCSV creates the CSV file with headers if it does not already exist.
 func ensureUsersCSV(path string) error {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		if err := os.MkdirAll("data", 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 			return err
 		}
 		f, err := os.Create(path)
@@ -50,7 +64,7 @@ func ensureUsersCSV(path string) error {
 	return nil
 }
 
-// This method reads and returns all users from the CSV file.
+// GetAllUsers reads and returns all users from the CSV file.
 func GetAllUsers() ([]User, error) {
 	path := getUsersCSVPath()
 	if err := ensureUsersCSV(path); err != nil {
@@ -72,7 +86,7 @@ func GetAllUsers() ([]User, error) {
 	var users []User
 	for i, record := range records {
 		if i == 0 {
-			continue // skip header
+			continue
 		}
 		if len(record) < 5 {
 			continue
@@ -89,7 +103,7 @@ func GetAllUsers() ([]User, error) {
 	return users, nil
 }
 
-// This method finds a user by their email address.
+// GetUserByEmail finds a user by their email address (case-insensitive).
 func GetUserByEmail(email string) (*User, error) {
 	users, err := GetAllUsers()
 	if err != nil {
@@ -103,7 +117,7 @@ func GetUserByEmail(email string) (*User, error) {
 	return nil, nil
 }
 
-// This method finds a user by their ID.
+// GetUserByID finds a user by their numeric ID.
 func GetUserByID(id int) (*User, error) {
 	users, err := GetAllUsers()
 	if err != nil {
@@ -117,7 +131,7 @@ func GetUserByID(id int) (*User, error) {
 	return nil, nil
 }
 
-// This method returns the next available user ID.
+// GetNextUserID returns the next available user ID (max existing ID + 1).
 func GetNextUserID() int {
 	users, err := GetAllUsers()
 	if err != nil || len(users) == 0 {
@@ -132,21 +146,21 @@ func GetNextUserID() int {
 	return max + 1
 }
 
-// This method appends a new user to the CSV file.
+// CreateUser appends a new user row to the CSV file.
 func CreateUser(user *User) error {
 	path := getUsersCSVPath()
 	if err := ensureUsersCSV(path); err != nil {
 		return err
 	}
 
+	user.ID = GetNextUserID()
+	user.CreatedAt = time.Now().UTC().Format(time.RFC3339)
+
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-
-	user.ID = GetNextUserID()
-	user.CreatedAt = time.Now().UTC().Format(time.RFC3339)
 
 	w := csv.NewWriter(f)
 	err = w.Write([]string{
@@ -163,7 +177,7 @@ func CreateUser(user *User) error {
 	return w.Error()
 }
 
-// This method checks if the email format is valid.
+// ValidateEmail checks if the email format is valid.
 func ValidateEmail(email string) bool {
 	parts := strings.Split(email, "@")
 	if len(parts) != 2 {
@@ -178,7 +192,7 @@ func ValidateEmail(email string) bool {
 	return true
 }
 
-// This method validates registration input fields.
+// ValidateUserInput validates registration input fields.
 func ValidateUserInput(name, email, password string) error {
 	if strings.TrimSpace(name) == "" {
 		return errors.New("Name is required")
@@ -197,5 +211,3 @@ func ValidateUserInput(name, email, password string) error {
 	}
 	return nil
 }
-
-

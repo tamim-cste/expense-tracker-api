@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"errors"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -12,13 +13,13 @@ import (
 	"github.com/beego/beego/v2/server/web"
 )
 
-// This slice defines the valid expense categories.
+// AllowedCategories defines the valid expense categories.
 var AllowedCategories = []string{
 	"Food", "Transport", "Housing", "Entertainment",
 	"Shopping", "Healthcare", "Education", "Utilities", "Other",
 }
 
-// Expense structure represents a single expense record.
+// Expense represents a single expense record.
 type Expense struct {
 	ID          int     `json:"id"`
 	UserID      int     `json:"user_id"`
@@ -30,7 +31,7 @@ type Expense struct {
 	CreatedAt   string  `json:"created_at"`
 }
 
-// CategorySummary structure holds aggregated data per category.
+// CategorySummary holds aggregated spending data for one category.
 type CategorySummary struct {
 	Category string  `json:"category"`
 	Total    float64 `json:"total"`
@@ -39,15 +40,28 @@ type CategorySummary struct {
 
 // ExpenseSummary is the response body for the summary endpoint.
 type ExpenseSummary struct {
-	DateFrom   string            `json:"date_from"`
-	DateTo     string            `json:"date_to"`
-	TotalAmount float64          `json:"total_amount"`
-	TotalCount  int              `json:"total_count"`
+	DateFrom    string            `json:"date_from"`
+	DateTo      string            `json:"date_to"`
+	TotalAmount float64           `json:"total_amount"`
+	TotalCount  int               `json:"total_count"`
 	ByCategory  []CategorySummary `json:"by_category"`
 }
 
-// getExpensesCSVPath returns the configured CSV file path for expenses.
+// overrideExpensesCSVPath allows tests to redirect CSV reads/writes to a temp file.
+var overrideExpensesCSVPath string
+
+// SetExpensesCSVPath overrides the CSV path used by all expense model functions.
+// Pass an empty string to reset to the config default. Used only in tests.
+func SetExpensesCSVPath(path string) {
+	overrideExpensesCSVPath = path
+}
+
+// getExpensesCSVPath returns the active CSV file path for expenses.
+// If SetExpensesCSVPath has been called (e.g. in tests), that path takes priority.
 func getExpensesCSVPath() string {
+	if overrideExpensesCSVPath != "" {
+		return overrideExpensesCSVPath
+	}
 	path, _ := web.AppConfig.String("expenses_csv_path")
 	if path == "" {
 		path = "data/expenses.csv"
@@ -55,10 +69,10 @@ func getExpensesCSVPath() string {
 	return path
 }
 
-// ensureExpensesCSV creates the CSV file with headers if it doesn't exist.
+// ensureExpensesCSV creates the CSV file with headers if it does not already exist.
 func ensureExpensesCSV(path string) error {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		if err := os.MkdirAll("data", 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 			return err
 		}
 		f, err := os.Create(path)
@@ -122,7 +136,7 @@ func readAllExpenses() ([]Expense, error) {
 	return expenses, nil
 }
 
-// writeAllExpenses rewrites the entire CSV with given expenses.
+// writeAllExpenses rewrites the entire CSV file with the given expenses.
 func writeAllExpenses(expenses []Expense) error {
 	path := getExpensesCSVPath()
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
@@ -157,7 +171,7 @@ func writeAllExpenses(expenses []Expense) error {
 	return w.Error()
 }
 
-// GetNextExpenseID returns the next available expense ID.
+// GetNextExpenseID returns the next available expense ID (max existing ID + 1).
 func GetNextExpenseID() int {
 	expenses, err := readAllExpenses()
 	if err != nil || len(expenses) == 0 {
@@ -172,7 +186,7 @@ func GetNextExpenseID() int {
 	return max + 1
 }
 
-// GetExpensesByUserID returns all expenses belonging to a user.
+// GetExpensesByUserID returns all expenses belonging to the given user.
 func GetExpensesByUserID(userID int) ([]Expense, error) {
 	all, err := readAllExpenses()
 	if err != nil {
@@ -187,7 +201,7 @@ func GetExpensesByUserID(userID int) ([]Expense, error) {
 	return result, nil
 }
 
-// GetExpenseByID finds a specific expense by ID and userID (ownership check).
+// GetExpenseByID finds a specific expense by ID, enforcing user ownership.
 func GetExpenseByID(id int, userID int) (*Expense, error) {
 	all, err := readAllExpenses()
 	if err != nil {
@@ -201,7 +215,7 @@ func GetExpenseByID(id int, userID int) (*Expense, error) {
 	return nil, nil
 }
 
-// CreateExpense appends a new expense to the CSV file.
+// CreateExpense appends a new expense row to the CSV file.
 func CreateExpense(expense *Expense) error {
 	path := getExpensesCSVPath()
 	if err := ensureExpensesCSV(path); err != nil {
@@ -235,7 +249,7 @@ func CreateExpense(expense *Expense) error {
 	return w.Error()
 }
 
-// UpdateExpense rewrites the CSV with the updated expense record.
+// UpdateExpense rewrites the CSV replacing the matching expense record.
 func UpdateExpense(updated *Expense) error {
 	all, err := readAllExpenses()
 	if err != nil {
@@ -255,7 +269,7 @@ func UpdateExpense(updated *Expense) error {
 	return writeAllExpenses(all)
 }
 
-// DeleteExpense removes an expense from the CSV by rewriting without it.
+// DeleteExpense removes a specific expense from the CSV by rewriting without it.
 func DeleteExpense(id int, userID int) error {
 	all, err := readAllExpenses()
 	if err != nil {
@@ -276,11 +290,10 @@ func DeleteExpense(id int, userID int) error {
 	return writeAllExpenses(filtered)
 }
 
-// FilterExpenses applies category, date range, sort filters to a slice.
+// FilterExpenses applies category, date range, and sort options to a slice of expenses.
 func FilterExpenses(expenses []Expense, category, dateFrom, dateTo, sortBy, sortOrder string) []Expense {
 	result := expenses
 
-	// Filter by category
 	if category != "" {
 		var filtered []Expense
 		for _, e := range result {
@@ -291,7 +304,6 @@ func FilterExpenses(expenses []Expense, category, dateFrom, dateTo, sortBy, sort
 		result = filtered
 	}
 
-	// Filter by date range
 	if dateFrom != "" {
 		var filtered []Expense
 		for _, e := range result {
@@ -301,6 +313,7 @@ func FilterExpenses(expenses []Expense, category, dateFrom, dateTo, sortBy, sort
 		}
 		result = filtered
 	}
+
 	if dateTo != "" {
 		var filtered []Expense
 		for _, e := range result {
@@ -311,7 +324,6 @@ func FilterExpenses(expenses []Expense, category, dateFrom, dateTo, sortBy, sort
 		result = filtered
 	}
 
-	// Sort
 	if sortBy == "amount" {
 		sort.Slice(result, func(i, j int) bool {
 			if sortOrder == "asc" {
@@ -320,7 +332,6 @@ func FilterExpenses(expenses []Expense, category, dateFrom, dateTo, sortBy, sort
 			return result[i].Amount > result[j].Amount
 		})
 	} else {
-		// default: sort by expense_date
 		sort.Slice(result, func(i, j int) bool {
 			if sortOrder == "asc" {
 				return result[i].ExpenseDate < result[j].ExpenseDate
@@ -332,14 +343,13 @@ func FilterExpenses(expenses []Expense, category, dateFrom, dateTo, sortBy, sort
 	return result
 }
 
-// BuildSummary generates a spending summary for a date range.
+// BuildSummary generates a spending summary for a user within a date range.
 func BuildSummary(userID int, dateFrom, dateTo string) (*ExpenseSummary, error) {
 	expenses, err := GetExpensesByUserID(userID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Filter date range
 	filtered := FilterExpenses(expenses, "", dateFrom, dateTo, "", "")
 
 	totalAmount := 0.0
@@ -381,7 +391,7 @@ func IsValidCategory(category string) bool {
 	return false
 }
 
-// ValidateExpenseInput validates expense creation/update fields.
+// ValidateExpenseInput validates expense creation and update input fields.
 func ValidateExpenseInput(title, category, expenseDate string, amount float64) error {
 	if strings.TrimSpace(title) == "" {
 		return errors.New("Title is required")
@@ -392,7 +402,6 @@ func ValidateExpenseInput(title, category, expenseDate string, amount float64) e
 	if strings.TrimSpace(expenseDate) == "" {
 		return errors.New("expense_date is required")
 	}
-	// Validate YYYY-MM-DD format
 	_, err := time.Parse("2006-01-02", expenseDate)
 	if err != nil {
 		return errors.New("expense_date must be in YYYY-MM-DD format")
