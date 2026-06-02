@@ -35,6 +35,9 @@ bee run
 
 The server starts on `http://localhost:8080` by default.
 
+The API's Swagger UI is available at `http://localhost:8080/swagger`. There is no need to run `bee run -gendoc=true -downdoc=true` to enable the Swagger UI; the project serves the Swagger files automatically in development mode.
+
+
 ## Configuration
 
 All configuration is stored in `conf/app.conf`.
